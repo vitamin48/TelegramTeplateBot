@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery
 from aiogram import F
 from aiogram.filters import CommandStart
 
-from services.config import ADMINS_ID, LOGS_CHATS_ID
+from services.config import config
 from services.logger import logger
 from services.utils import format_message_info, format_callback_query_info
 from services.queries import add_user, get_lexicon
@@ -20,7 +20,7 @@ async def start_command(message: Message, bot: Bot):
     add_user(message)
     log_text = f"Пользователь {message.from_user.id} отправил команду /start"
     logger.info(log_text)
-    await bot.send_message(chat_id=LOGS_CHATS_ID[0], text=format_message_info(message),
+    await bot.send_message(chat_id=config.logs_chat, text=format_message_info(message),
                            parse_mode='html')
     await message.answer(text=get_lexicon(message=message, lex_key='start'))
 
@@ -29,7 +29,7 @@ async def start_command(message: Message, bot: Bot):
 @send_command.message(Command(commands=["send"]))
 async def send_message(message: Message, bot: Bot):
     user_id = message.from_user.id
-    if user_id in ADMINS_ID:
+    if user_id in config.admins:
         try:
             # Разделяем текст команды
             command_parts = message.text.split(' ', 2)  # Разделяем по пробелам
@@ -56,7 +56,7 @@ async def send_message(message: Message, bot: Bot):
             logger.error(f"Ошибка при отправке сообщения: {exp}")
             await message.answer(f"Произошла ошибка при отправке сообщения: {exp}")
     else:
-        await bot.send_message(chat_id=LOGS_CHATS_ID[0], text='Кто-то не из админов отправил команду /send',
+        await bot.send_message(chat_id=config.logs_chat, text='Кто-то не из админов отправил команду /send',
                                parse_mode='html')
 
 
@@ -71,6 +71,6 @@ async def button_pressed(callback_query: CallbackQuery, bot: Bot):
 
     # Дополнительно можно отправить сообщение в чат
     # await bot.send_message(callback_query.from_user.id, f"Вы выбрали: {button_text}")
-    await bot.send_message(chat_id=LOGS_CHATS_ID[0], text=format_callback_query_info(callback_query),
+    await bot.send_message(chat_id=config.logs_chat, text=format_callback_query_info(callback_query),
                            parse_mode='html')
     await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
