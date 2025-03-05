@@ -1,4 +1,5 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 kb_start = InlineKeyboardBuilder()
 kb_start.button(text='📈 Заказано товаров', callback_data=f'products_ordered')
@@ -18,3 +19,13 @@ kb_products_ordered_menu.button(text='За месяц', callback_data=f'kb_po_me
 kb_products_ordered_menu.button(text='Ввести даты вручную', callback_data='kb_po_menu_custom_date')
 kb_products_ordered_menu.button(text='⬅️ Назад', callback_data=f'kb_back')
 kb_products_ordered_menu.adjust(2, 2, 1, 1)
+
+
+def phone_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Отправить номер телефона", request_contact=True)]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )

@@ -8,7 +8,7 @@ from aiogram.filters import CommandStart
 
 from services.config import config
 from services.logger import logger
-from services.utils import format_message_info, format_callback_query_info
+from utils.format_message_info import format_message_info, format_callback_query_info
 from services.queries import add_user, get_lexicon
 
 send_command = Router()

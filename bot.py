@@ -11,13 +11,13 @@ from handlers import commands, universal_handler
 from services.logger import logger
 
 from services.queries import add_user, get_lexicon
-from services.utils import format_message_info, format_callback_query_info
-from services.config import TOKEN, ADMINS_ID, LOGS_CHATS_ID
+from utils.format_message_info import format_message_info, format_callback_query_info
+from services.config import config
 
 
 async def main():
     # Создаем объекты бота и хранилища состояний
-    bot = Bot(token=TOKEN)
+    bot = Bot(token=config.token)
     storage = MemoryStorage()
 
     # Создаем диспетчер
@@ -31,8 +31,8 @@ async def main():
     dp.include_router(universal_handler.unihandler)
 
     # Запускаем polling
+    logger.info('Запускаю бот...')
     await dp.start_polling(bot)
-    logger.info('Бот запущен')
 
 
 if __name__ == "__main__":

@@ -16,4 +16,4 @@ def format_callback_query_info(callback_query: CallbackQuery) -> str:
     """
     return (f'Пользователь с id={callback_query.message.chat.id}, ником: @{callback_query.message.chat.username}  '
             f'и именем: {callback_query.message.chat.full_name} нажал на кнопку:'
-            f'\n\n{callback_query.message.text}\n\n<code>/send {callback_query.message.chat.id} </code>')
+            f'\n\n{callback_query.data}\n\n<code>/send {callback_query.message.chat.id} </code>')
