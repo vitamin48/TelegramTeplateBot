@@ -1,10 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-kb_start = InlineKeyboardBuilder()
-kb_start.button(text='📈 Заказано товаров', callback_data=f'products_ordered')
-kb_start.adjust(1)
-
 kb_back = InlineKeyboardBuilder()
 kb_back.button(text='⬅️ Назад', callback_data=f'kb_back')
 

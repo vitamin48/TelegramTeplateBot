@@ -1,70 +1,53 @@
-import sqlite3
+import aiosqlite
 from datetime import datetime
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message
 
+# Константа с именем БД остается
 NAME_DB = 'db_bot.db'
 
 
-# def get_start_data():
-#     """
-#     Получаем токен, чат для логов и список админов.
-#     """
-#     with sqlite3.connect(NAME_DB) as conn:
-#         cursor = conn.cursor()
-#         cursor.execute("SELECT TOKEN_BOT FROM TOKENS_BOT")
-#         token = str(cursor.fetchone()[0])
-#         cursor.execute("SELECT ADMIN_ID FROM ADMINS_ID")
-#         admins_lst = [row[0] for row in cursor.fetchall()]
-#         cursor.execute("SELECT LOGS_CHAT_ID FROM LOGS_CHATS_ID")
-#         logs_chats_lst = [row[0] for row in cursor.fetchall()]
-#     return token, admins_lst, logs_chats_lst
-
-
-def add_user(message):
+async def add_user(db: aiosqlite.Connection, message: Message):
     """
-    Добавляет нового пользователя в базу данных.
+    Добавляет нового пользователя в базу данных асинхронно.
+    Принимает объект соединения 'db' из middleware.
     """
-    # Получаем информацию о пользователе
     user = message.from_user
-    user_id = user.id
-    username = user.username
-    first_name = user.first_name
-    last_name = user.last_name
-    language_code = user.language_code
     date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    with sqlite3.connect(NAME_DB) as conn:
-        cursor = conn.cursor()
-
-        # Вставляем данные о пользователе
-        cursor.execute('''
-            INSERT OR IGNORE INTO users (date_start, user_id, username, first_name, last_name, language_code)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (date, user_id, username, first_name, last_name, language_code))
-
-        # Сохраняем изменения
-        conn.commit()
+    # Используем параметризованный запрос для безопасности
+    await db.execute(
+        '''INSERT OR IGNORE INTO users (date_start, user_id, username, first_name, last_name, language_code)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (date, user.id, user.username, user.first_name, user.last_name, user.language_code)
+    )
+    # Сохраняем изменения
+    await db.commit()
 
 
-def get_lexicon(message, lex_key):
-    """Получаем текстовое сообщение на основе ключа и языка"""
-    language_code = message.from_user.language_code
-
+async def get_lexicon(db: aiosqlite.Connection, language_code: str, lex_key: str) -> str | None:
+    """
+    Получаем текстовое сообщение асинхронно.
+    Принимает объект соединения 'db' и код языка.
+    """
     # Определяем таблицу на основе кода языка
-    if language_code == 'ru':
-        table_name = 'lexicon_ru'
-    elif language_code == 'uk':
-        table_name = 'lexicon_ua'
-    else:
-        table_name = 'lexicon_en'
+    table_map = {'ru': 'lexicon_ru', 'uk': 'lexicon_ua'}
+    table_name = table_map.get(language_code, 'lexicon_en')  # 'lexicon_en' как значение по умолчанию
 
-    # Подключение к базе данных и выполнение запроса
-    with sqlite3.connect(NAME_DB) as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT text FROM {table_name} WHERE key = ?", (lex_key,))
-        result = cursor.fetchone()
-
+    # Выполняем запрос и получаем результат
+    async with db.execute(f"SELECT text FROM {table_name} WHERE key = ?", (lex_key,)) as cursor:
+        result = await cursor.fetchone()
         if result:
             return str(result[0])
         else:
+            # Лучше возвращать None, если ключ не найден
             return None
+
+
+async def get_all_user_ids(db: aiosqlite.Connection) -> list[int]:
+    """
+    Возвращает список всех user_id из таблицы users.
+    """
+    async with db.execute("SELECT user_id FROM users") as cursor:
+        # fetchall() вернет список кортежей [(id1,), (id2,), ...],
+        # поэтому мы извлекаем первый элемент из каждого кортежа.
+        return [row[0] for row in await cursor.fetchall()]

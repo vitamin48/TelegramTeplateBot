@@ -1,23 +1,34 @@
-import sqlite3
+import aiosqlite
 
 
 class Config:
-    def __init__(self, path_to_db='db_bot.db'):
-        with sqlite3.connect(path_to_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT TOKEN_BOT FROM TOKENS_BOT ORDER BY ROWID ASC")
-            tokens = cursor.fetchall()
-            self.token = tokens[0][0]
-            # self.test_token = tokens[1][0]
-            cursor.execute("SELECT ADMIN_ID FROM ADMINS_ID")
-            self.admins = [row[0] for row in cursor.fetchall()]
-            cursor.execute("SELECT client_id, api_key, Description FROM admins_client_id_api_key")  # Замените `my_table` на вашу таблицу
-            self.client_id_api_key = cursor.fetchall()
-            # cursor.execute("SELECT LOGS_CHAT_ID FROM LOGS_CHATS_ID ORDER BY ROWID ASC")
-            # logs_and_errors_chats = cursor.fetchall()
-            # self.logs_chat = logs_and_errors_chats[0][0]
-            # self.errors_chat = logs_and_errors_chats[1][0]
+    """Простой класс-контейнер для хранения конфигурации."""
+
+    def __init__(self, token: str, admins: list[int], logs_chat: int | None = None):
+        self.token = token
+        self.admins = admins
+        self.logs_chat = logs_chat
 
 
-config = Config()
-print()
+async def load_config(path_to_db: str = 'db_bot.db') -> Config:
+    """
+    Асинхронно загружает конфигурацию из базы данных.
+    """
+    async with aiosqlite.connect(path_to_db) as db:
+        # Получаем токен
+        async with db.execute("SELECT TOKEN_BOT FROM TOKENS_BOT ORDER BY ROWID ASC LIMIT 1") as cursor:
+            token_row = await cursor.fetchone()
+            if not token_row:
+                raise ValueError("Токен бота не найден в базе данных!")
+            token = token_row[0]
+
+        # Получаем список админов
+        async with db.execute("SELECT ADMIN_ID FROM ADMINS_ID") as cursor:
+            admins = [row[0] for row in await cursor.fetchall()]
+            ...
+
+        async with db.execute("SELECT LOGS_CHAT_ID FROM LOGS_CHATS_ID ORDER BY ROWID ASC LIMIT 1") as cursor:
+            logs_chat_row = await cursor.fetchone()
+            logs_chat = logs_chat_row[0] if logs_chat_row else None
+
+    return Config(token=token, admins=admins, logs_chat=logs_chat)
