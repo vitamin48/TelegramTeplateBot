@@ -36,7 +36,7 @@ async def send_command(message: Message, bot: Bot, db: asyncpg.Connection, confi
     if not await is_admin(db, message.from_user.id):
         # 2. Уведомление в лог-чат из Варианта 2 (безопасность)
         await bot.send_message(
-            chat_id=config.tg_bot.logs_chat,
+            chat_id=config.logs_chat,
             text=f'Пользователь {message.from_user.id} ({message.from_user.full_name}) попытался использовать команду /send'
         )
         # await message.answer("У вас нет прав для выполнения этой команды.")

@@ -182,3 +182,9 @@ db_bot.db
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/vcs.xml
 /.idea/TelegramTeplateBot.iml
+
+# Игнорировать всё содержимое папки temp/
+temp/*
+
+# Но НЕ игнорировать файл .gitkeep в ней
+!temp/.gitkeep

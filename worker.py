@@ -68,6 +68,6 @@ class WorkerSettings:
     """
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", 6379))
-    functions = [generate_report_task]  # Список задач, которые может выполнять воркер
+    functions = [generate_demo_task]  # Список задач, которые может выполнять воркер
     max_jobs = 2  # Количество задач, выполняемых одновременно
     queue_name = 'default'  # Название очереди

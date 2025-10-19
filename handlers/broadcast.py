@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from services.FSM import BroadcastState
-from services.queries import get_all_user_ids
+from services.queries import get_all_active_user_ids
 from services.logger import logger
 from services.config import Config
 
@@ -45,7 +45,7 @@ async def get_broadcast_content(message: Message, state: FSMContext, bot: Bot, d
     # Сохраняем ID сообщения, которое будем копировать
     await state.update_data(message_to_copy_id=message.message_id)
 
-    user_ids = await get_all_user_ids(db)
+    user_ids = await get_all_active_user_ids(db)
     user_count = len(user_ids)
 
     # Пересылаем сообщение админу для предпросмотра
@@ -81,7 +81,7 @@ async def confirm_and_start_broadcast(callback: CallbackQuery, state: FSMContext
         await bot.send_message(admin_chat_id, "Не удалось найти сообщение для рассылки. Попробуйте снова.")
         return
 
-    user_ids = await get_all_user_ids(db)
+    user_ids = await get_all_active_user_ids(db)
     success_count = 0
     fail_count = 0
 
