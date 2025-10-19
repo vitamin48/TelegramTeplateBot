@@ -1,61 +1,73 @@
-import aiosqlite  # Импортируем aiosqlite
+import asyncpg
 from aiogram import Router, Bot
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram import F
 
 from services.logger import logger
-from utils.format_message_info import format_message_info, format_callback_query_info
-from services.queries import add_user, get_lexicon
+from services.format_message_info import format_message_info
+from services.queries import add_user, get_lexicon, is_admin
 from services.config import Config
 
-send_command = Router()
+router = Router()
 
 
-# Обработчик команды /start
-@send_command.message(CommandStart())
-async def start_command(message: Message, bot: Bot, db: aiosqlite.Connection, config: Config):
-    # Вызываем асинхронные функции
-    await add_user(db, message)
-    log_text = f"Пользователь {message.from_user.id} отправил команду /start"
-    logger.info(log_text)
-    await bot.send_message(chat_id=config.logs_chat, text=format_message_info(message),
-                           parse_mode='html')
-
-    lexicon_text = await get_lexicon(db, message.from_user.language_code, 'start')
-    await message.answer(text=lexicon_text or "Добро пожаловать!")
+@router.message(CommandStart())
+async def start_command(message: Message, bot: Bot, db: asyncpg.Connection, config: Config):
+    await add_user(db, message.from_user)
+    logger.info(f"Пользователь {message.from_user.id} отправил /start")
+    await bot.send_message(
+        chat_id=config.logs_chat,
+        text=format_message_info(message)
+    )
+    lexicon_text = await get_lexicon(db, 'start')
+    await message.answer(text=lexicon_text)
 
 
-# Обработчик команды /send
-@send_command.message(Command(commands=["send"]))
-async def send_message(message: Message, bot: Bot, config: Config):
-    # Получаем объект config
-    user_id = message.from_user.id
-    if user_id in config.admins:
-        try:
-            command_parts = message.text.split(' ', 2)
-            if len(command_parts) < 3:
-                await message.answer("Неправильный формат команды. Используйте: /send <chat_id> <текст>")
-                return
-            chat_id = command_parts[1]
-            text = command_parts[2]
-            keyboard = InlineKeyboardBuilder()
-            if '<btn>' in text:
-                text, buttons = text.split('<btn>', 1)
-                buttons = buttons.split('<btn>')
-                for button in buttons:
-                    keyboard.button(text=button, callback_data=f'btn_{button}')
-                keyboard.adjust(1)
-            await bot.send_message(chat_id, text, reply_markup=keyboard.as_markup())
-            await message.answer(f"Сообщение отправлено в чат ID {chat_id}: {text}")
-            logger.info(f"Сообщение отправлено в чат ID {chat_id} от пользователя {message.from_user.id}: {text}")
-        except Exception as exp:
-            logger.error(f"Ошибка при отправке сообщения: {exp}")
-            await message.answer(f"Произошла ошибка при отправке сообщения: {exp}")
-    else:
-        await bot.send_message(chat_id=config.logs_chat, text='Кто-то не из админов отправил команду /send',
-                               parse_mode='html')
+@router.message(Command(commands=["help"]))
+async def help_command(message: Message, db: asyncpg.Connection):
+    lexicon_text = await get_lexicon(db, 'help')
+    await message.answer(text=lexicon_text)
+
+
+@router.message(Command(commands=["send"]))
+async def send_command(message: Message, bot: Bot, db: asyncpg.Connection, config: Config):
+    # 1. Проверка прав из Варианта 1 (гибкость)
+    if not await is_admin(db, message.from_user.id):
+        # 2. Уведомление в лог-чат из Варианта 2 (безопасность)
+        await bot.send_message(
+            chat_id=config.tg_bot.logs_chat,
+            text=f'Пользователь {message.from_user.id} ({message.from_user.full_name}) попытался использовать команду /send'
+        )
+        # await message.answer("У вас нет прав для выполнения этой команды.")
+        return
+
+    try:
+        # 3. Надежный парсинг из Варианта 2
+        command_parts = message.text.split(' ', 2)
+        if len(command_parts) < 3:
+            await message.answer("Неверный формат. Используйте: /send <chat_id> <текст>")
+            return
+
+        _, chat_id, text = command_parts
+
+        # 4. Функциональность с кнопками из Варианта 2
+        keyboard = InlineKeyboardBuilder()
+        if '<btn>' in text:
+            text, buttons_data = text.split('<btn>', 1)
+            buttons = buttons_data.split('<btn>')
+            for button in buttons:
+                keyboard.button(text=button.strip(),
+                                callback_data=f'admin_btn_{button.strip()}')  # callback_data лучше делать уникальными
+            keyboard.adjust(1)
+
+        await bot.send_message(chat_id, text, reply_markup=keyboard.as_markup())
+        await message.answer(f"Сообщение успешно отправлено в чат {chat_id}.")
+        logger.info(f"Админ {message.from_user.id} отправил сообщение в чат {chat_id}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при выполнении /send: {e}")
+        await message.answer(f"Произошла ошибка: {e}")
 
 
 # Хэндлер для обработки нажатий на кнопки

@@ -1,53 +1,33 @@
-import aiosqlite
-from datetime import datetime
-from aiogram.types import Message
-
-# Константа с именем БД остается
-NAME_DB = 'db_bot.db'
+import asyncpg
+from aiogram.types import User
 
 
-async def add_user(db: aiosqlite.Connection, message: Message):
+async def add_user(db: asyncpg.Connection, user: User):
+    sql = """
+        INSERT INTO users (telegram_id, username, first_name, last_name, language_code)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (telegram_id) DO NOTHING
     """
-    Добавляет нового пользователя в базу данных асинхронно.
-    Принимает объект соединения 'db' из middleware.
-    """
-    user = message.from_user
-    date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    # Используем параметризованный запрос для безопасности
-    await db.execute(
-        '''INSERT OR IGNORE INTO users (date_start, user_id, username, first_name, last_name, language_code)
-           VALUES (?, ?, ?, ?, ?, ?)''',
-        (date, user.id, user.username, user.first_name, user.last_name, user.language_code)
-    )
-    # Сохраняем изменения
-    await db.commit()
+    await db.execute(sql, user.id, user.username, user.first_name, user.last_name, user.language_code)
 
 
-async def get_lexicon(db: aiosqlite.Connection, language_code: str, lex_key: str) -> str | None:
-    """
-    Получаем текстовое сообщение асинхронно.
-    Принимает объект соединения 'db' и код языка.
-    """
-    # Определяем таблицу на основе кода языка
-    table_map = {'ru': 'lexicon_ru', 'uk': 'lexicon_ua'}
-    table_name = table_map.get(language_code, 'lexicon_en')  # 'lexicon_en' как значение по умолчанию
-
-    # Выполняем запрос и получаем результат
-    async with db.execute(f"SELECT text FROM {table_name} WHERE key = ?", (lex_key,)) as cursor:
-        result = await cursor.fetchone()
-        if result:
-            return str(result[0])
-        else:
-            # Лучше возвращать None, если ключ не найден
-            return None
+async def get_lexicon(db: asyncpg.Connection, lex_key: str, lang: str = 'ru') -> str:
+    sql = "SELECT text FROM lexicon WHERE lex_key = $1 AND lang_code = $2"
+    result = await db.fetchval(sql, lex_key, lang)
+    return result or f"Текст для ключа '{lex_key}' не найден."
 
 
-async def get_all_user_ids(db: aiosqlite.Connection) -> list[int]:
-    """
-    Возвращает список всех user_id из таблицы users.
-    """
-    async with db.execute("SELECT user_id FROM users") as cursor:
-        # fetchall() вернет список кортежей [(id1,), (id2,), ...],
-        # поэтому мы извлекаем первый элемент из каждого кортежа.
-        return [row[0] for row in await cursor.fetchall()]
+async def is_admin(db: asyncpg.Connection, telegram_id: int) -> bool:
+    sql = "SELECT is_admin FROM users WHERE telegram_id = $1"
+    result = await db.fetchval(sql, telegram_id)
+    return result or False
+
+
+async def get_all_active_user_ids(db: asyncpg.Connection) -> list[int]:
+    rows = await db.fetch("SELECT telegram_id FROM users WHERE status = 'active'")
+    return [row['telegram_id'] for row in rows]
+
+
+async def deactivate_user(db: asyncpg.Connection, telegram_id: int):
+    sql = "UPDATE users SET status = 'inactive' WHERE telegram_id = $1"
+    await db.execute(sql, telegram_id)
