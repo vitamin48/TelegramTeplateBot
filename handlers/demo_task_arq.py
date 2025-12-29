@@ -3,32 +3,34 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from arq.connections import ArqRedis
-import asyncpg
 
 from services.logger import logger
 from services.FSM import ReportState
 from services.keyboards import get_confirm_cancel_kb
+from services.callbacks import DemoTaskCallback  # <--- Импорт
 
 router = Router()
 
 
-@router.message(Command("demo_task"))
+@router.message(Command("report"))
 async def ask_for_report(message: Message, state: FSMContext):
     await message.answer(
-        "Продолжить?",
-        reply_markup=get_confirm_cancel_kb()
+        "Вы хотите сгенерировать тяжелый отчет?",
+        reply_markup=get_confirm_cancel_kb().as_markup()
     )
     await state.set_state(ReportState.confirm)
 
 
-@router.callback_query(F.data == "cancel", ReportState.confirm)
+# Ловим нажатие, если это DemoTaskCallback И action == "cancel"
+@router.callback_query(ReportState.confirm, DemoTaskCallback.filter(F.action == "cancel"))
 async def cancel_report(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text("Отменено.")
     await callback.answer()
 
 
-@router.callback_query(F.data == "confirm", ReportState.confirm)
+# Ловим нажатие, если это DemoTaskCallback И action == "confirm"
+@router.callback_query(ReportState.confirm, DemoTaskCallback.filter(F.action == "confirm"))
 async def queue_report_task(callback: CallbackQuery, state: FSMContext, arq_pool: ArqRedis):
     await state.clear()
 
@@ -39,7 +41,7 @@ async def queue_report_task(callback: CallbackQuery, state: FSMContext, arq_pool
 
     # Ставим задачу в очередь Arq
     await arq_pool.enqueue_job(
-        "generate_demo_task",  # Имя функции в worker.py
+        "generate_demo_task",
         {"chat_id": callback.message.chat.id, "status_msg_id": status_msg.message_id}
     )
     logger.info(f"Задача generate_demo_task поставлена в очередь для чата {callback.message.chat.id}")
