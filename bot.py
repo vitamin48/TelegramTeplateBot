@@ -5,12 +5,13 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.redis import RedisStorage
-from aiogram.client.default import DefaultBotProperties  # <--- НОВЫЙ ИМПОРТ
+from aiogram.client.default import DefaultBotProperties
 from arq import create_pool as create_arq_pool
 from arq.connections import RedisSettings
 
 from handlers import (
     commands,
+    user_handlers,
     universal_handler,
     broadcast,
     demo_task_arq,  # Оставляем старое название, пока не переименовали файл
@@ -65,6 +66,7 @@ async def main():
     # Подключение роутеров
     dp.include_router(errors.errors_router)
     dp.include_router(commands.router)
+    dp.include_router(user_handlers.router)
     dp.include_router(broadcast.router)
     dp.include_router(demo_task_arq.router)
     dp.include_router(universal_handler.unihandler)

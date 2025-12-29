@@ -34,12 +34,6 @@ async def start_command(message: Message, bot: Bot, db: asyncpg.Connection, conf
     await message.answer(text=lexicon_text)
 
 
-@router.message(Command(commands=["help"]))
-async def help_command(message: Message, db: asyncpg.Connection):
-    lexicon_text = await get_lexicon(db, 'help')
-    await message.answer(text=lexicon_text)
-
-
 @router.message(Command(commands=["logs"]))
 async def logs_command(
         message: Message,
