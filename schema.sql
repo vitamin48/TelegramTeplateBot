@@ -6,6 +6,8 @@ CREATE TABLE users (
     last_name VARCHAR(255),
     language_code VARCHAR(10),
     registration_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    referral_source VARCHAR(255),
     status VARCHAR(50) DEFAULT 'active',
     is_admin BOOLEAN DEFAULT FALSE
 );

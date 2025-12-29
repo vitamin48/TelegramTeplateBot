@@ -2,13 +2,33 @@ import asyncpg
 from aiogram.types import User
 
 
-async def add_user(db: asyncpg.Connection, user: User):
-    sql = """
-        INSERT INTO users (telegram_id, username, first_name, last_name, language_code)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (telegram_id) DO NOTHING
+async def add_user(db: asyncpg.Connection, user: User, referral_source: str = None):
     """
-    await db.execute(sql, user.id, user.username, user.first_name, user.last_name, user.language_code)
+    Добавляет пользователя в БД или обновляет данные, если он уже есть (Upsert).
+    """
+    sql = """
+        INSERT INTO users (telegram_id, username, first_name, last_name, language_code, referral_source)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (telegram_id) DO UPDATE SET
+            username = EXCLUDED.username,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            updated_at = NOW()
+        RETURNING id
+    """
+    # Если referral_source не передан, запишется NULL (или старое значение не перезапишется,
+    # но в данном запросе мы вставляем referral_source только при INSERT.
+    # При UPDATE рефералка обычно не меняется, так как атрибуция идет по первому входу).
+
+    await db.execute(
+        sql,
+        user.id,
+        user.username,
+        user.first_name,
+        user.last_name,
+        user.language_code,
+        referral_source
+    )
 
 
 async def get_lexicon(db: asyncpg.Connection, lex_key: str, lang: str = 'ru') -> str:
