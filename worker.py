@@ -1,11 +1,11 @@
 import os
 import asyncio
 import traceback
-from io import BytesIO
 from dotenv import load_dotenv
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.client.default import DefaultBotProperties  # <--- НОВЫЙ ИМПОРТ
 
 from services.config import load_config
 from services.logger import logger
@@ -22,14 +22,21 @@ async def generate_demo_task(ctx, task_data: dict):
     status_msg_id = task_data.get("status_msg_id")
 
     config = load_config()
-    bot = Bot(token=config.token, parse_mode='HTML')
+
+    # Инициализируем бота внутри воркера с новыми свойствами
+    bot = Bot(
+        token=config.token,
+        default=DefaultBotProperties(parse_mode='HTML')
+    )
 
     try:
         # 1. Симуляция работы тяжелой задачи
         await asyncio.sleep(5)
 
         # 2. Отправка результата
-        logger.info(f"Успешно.")
+        logger.info(f"Успешно выполнена задача для {chat_id}")
+        # Здесь можно добавить логику отправки файла или сообщения пользователю
+        # Для примера просто уведомим в лог
 
     except Exception as e:
         error_text = f"Ошибка в воркере для чата {chat_id}: {e}"

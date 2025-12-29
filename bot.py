@@ -1,11 +1,11 @@
 import asyncio
 import asyncpg
-import os
+import redis.asyncio as redis
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.redis import RedisStorage
-import redis.asyncio as redis
+from aiogram.client.default import DefaultBotProperties  # <--- НОВЫЙ ИМПОРТ
 from arq import create_pool as create_arq_pool
 from arq.connections import RedisSettings
 
@@ -13,7 +13,7 @@ from handlers import (
     commands,
     universal_handler,
     broadcast,
-    report_handler,
+    demo_task_arq,  # Оставляем старое название, пока не переименовали файл
     errors
 )
 from services.logger import logger
@@ -36,8 +36,12 @@ async def main():
     # Инициализация пула соединений с PostgreSQL
     pool = await asyncpg.create_pool(dsn=DATABASE_URL)
 
-    # Инициализация бота и диспетчера
-    bot = Bot(token=config.token, parse_mode='HTML')
+    # Инициализация бота с новыми настройками (DefaultBotProperties)
+    bot = Bot(
+        token=config.token,
+        default=DefaultBotProperties(parse_mode='HTML')
+    )
+
     dp = Dispatcher(
         storage=storage,
         config=config,
@@ -62,7 +66,7 @@ async def main():
     dp.include_router(errors.errors_router)
     dp.include_router(commands.router)
     dp.include_router(broadcast.router)
-    dp.include_router(report_handler.router)
+    dp.include_router(demo_task_arq.router)
     dp.include_router(universal_handler.unihandler)
 
     try:
